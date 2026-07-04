@@ -351,4 +351,5 @@ if __name__ == "__main__":
     
     print("Servidor Fantasma ativo. Iniciando Polling do Telegram...")
     # Executa o bot continuamente
-    bot.infinity_polling()
+    bot.remove_webhook()
+bot.infinity_polling()
