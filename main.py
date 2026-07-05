@@ -50,6 +50,10 @@ def query_text(inline_query):
     bot.answer_inline_query(inline_query.id, results, cache_time=0)
 
 # 4. COMANDOS
+@bot.message_handler(commands=['start'])
+def start(message):
+    bot.reply_to(message, "Bot online e operante!")
+
 @bot.message_handler(commands=['nova_serie'])
 def criar_nova_serie(message):
     try:
@@ -67,7 +71,7 @@ def criar_nova_serie(message):
         bot.reply_to(message, f"✅ Série **{titulo}** cadastrada!")
     except Exception as e: bot.reply_to(message, f"Erro: {e}")
 
-# 5. SALVAMENTO DE VÍDEOS (INTEGRADO)
+# 5. SALVAMENTO DE VÍDEOS
 @bot.message_handler(content_types=['video'])
 def handle_video(message):
     if not message.caption:
@@ -98,7 +102,13 @@ def handle_video(message):
             conn.close()
         except Exception as e: bot.reply_to(message, f"Erro: {e}")
 
-# 6. EXECUÇÃO
+# 6. EXECUÇÃO REFORÇADA
 if __name__ == "__main__":
-    Thread(target=run_server).start()
-    bot.infinity_polling(timeout=60, long_polling_timeout=60)
+    Thread(target=run_server, daemon=True).start()
+    print("Iniciando o Bot...")
+    try:
+        bot.remove_webhook()
+        bot.infinity_polling(timeout=60, long_polling_timeout=60)
+    except Exception as e:
+        print(f"Erro ao iniciar: {e}")
+        
