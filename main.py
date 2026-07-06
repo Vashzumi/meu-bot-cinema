@@ -11,7 +11,7 @@ TOKEN = os.environ.get("TELEGRAM_TOKEN")
 bot = telebot.TeleBot(TOKEN)
 DB_NAME = "cinema.db"
 
-# 2. SERVIDOR FLASK
+# 2. SERVIDOR FLASK (PARA O RENDER NÃO DORMIR)
 app = Flask('')
 @app.route('/')
 def home(): 
@@ -32,7 +32,7 @@ def init_db():
 
 init_db()
 
-# 4. BUSCA INLINE (GARANTE O MENU NO TELEGRAM)
+# 4. BUSCA INLINE (MENU DO TELEGRAM)
 @bot.inline_handler(lambda query: True)
 def query_text(inline_query):
     query = inline_query.query.strip()
@@ -51,10 +51,10 @@ def query_text(inline_query):
         ))
     bot.answer_inline_query(inline_query.id, results, cache_time=0)
 
-# 5. COMANDOS E INTERAÇÕES
+# 5. COMANDOS BÁSICOS
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    bot.reply_to(message, "🎬 Sistema pronto! Digite @ seu bot no chat para buscar, ou envie vídeos com a legenda correspondente.")
+    bot.reply_to(message, "🎬 Sistema pronto! Digite @ o nome do bot no chat para buscar, ou envie vídeos com a legenda correspondente.")
 
 @bot.message_handler(commands=['nova_serie'])
 def nova_serie(message):
@@ -70,49 +70,14 @@ def nova_serie(message):
     except: 
         bot.reply_to(message, "⚠️ Use: /nova_serie Nome | Gênero | Link Capa | Sinopse")
 
+# 6. EXIBIÇÃO DA SÉRIE COM BOTÕES CLICÁVEIS
 @bot.message_handler(regexp=r"^/ver_\d+$")
 def mostrar_episodios(message):
     serie_id = message.text.split("_")[1]
+    
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-    cursor.execute("SELECT temporada, episodio, file_id FROM episodios WHERE serie_id = ? ORDER BY temporada, episodio", (serie_id,))
-    eps = cursor.fetchall()
-    conn.close()
+    cursor.execute("SELECT titulo, genero, capa_url, sinopse FROM conteudos WHERE id = ?", (serie_id,))
+    serie = cursor.fetchone()
     
-    if not eps:
-        bot.reply_to(message, "❌ Nenhum episódio salvo para esta série.")
-        return
-
-    resposta = "🎬 **Episódios Disponíveis:**\n\n"
-    for t, e, fid in eps:
-        resposta += f"• Temporada {t} - Episódio {e}\n"
-    bot.reply_to(message, resposta)
-
-@bot.message_handler(content_types=['video'])
-def handle_video(message):
-    legenda = message.caption or ""
-    match = re.search(r"(.+?)\s+[sS](\d+)[eE](\d+)", legenda)
-    if match:
-        nome, temp, ep = match.groups()
-        conn = sqlite3.connect(DB_NAME)
-        cursor = conn.cursor()
-        cursor.execute("SELECT id FROM conteudos WHERE titulo LIKE ?", (f"%{nome.strip()}%",))
-        row = cursor.fetchone()
-        if row:
-            cursor.execute("INSERT OR REPLACE INTO episodios (serie_id, temporada, episodio, file_id) VALUES (?, ?, ?, ?)", (row[0], int(temp), int(ep), message.video.file_id))
-            conn.commit()
-            bot.reply_to(message, f"✅ S{temp}E{ep} salvo em {nome}!")
-        conn.close()
-
-# 6. EXECUÇÃO INVERTIDA (DESTREVA O BOT)
-if __name__ == "__main__":
-    print("Forçando limpeza de conexões antigas...")
-    bot.remove_webhook()
-    
-    # Liga o Flask de forma totalmente independente em segundo plano
-    server_thread = Thread(target=run_server)
-    server_thread.daemon = True
-    server_thread.start()
-    
-    print("Iniciando escuta do Telegram...")
-    bot.infinity_polling(skip_pending=True)
+    cursor.execute("SELECT temporada, episodio, id FROM episodios
